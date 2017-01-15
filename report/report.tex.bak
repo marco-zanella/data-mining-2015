@@ -1,0 +1,522 @@
+\documentclass[a4paper, 10pt]{report}
+
+% Packages
+\usepackage[italian]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{textcomp}
+\usepackage{gensymb}
+\usepackage{graphicx}
+\usepackage{default}
+\usepackage{bbding}
+\usepackage{hyperref}
+
+
+% Some heading
+%\includegraphics[height=1.2cm]{images/unipd.png}
+
+
+
+%-----------------------------------------------------------------------
+% Documento
+%-----------------------------------------------------------------------
+\begin{document}
+% Title page
+\title{Analisi di dati relativi ad un\\servizio di bike sharing}
+\author{Marco Zanella}
+\maketitle
+
+\tableofcontents
+
+
+
+%-----------------------------------------------------------------------
+% Abstract
+%-----------------------------------------------------------------------
+\begin{abstract}
+  I sistemi di \emph{bike sharing} sono la nuova generazione di noleggio di
+  biciclette completamente automatizzato. Grazie ad essi, gli utenti
+  sono in grado di noleggiare una bicicletta presso una rastrelliera
+  e depositarla successivamente in una qualunque altra. Attualmente esistono
+  più di 500 programmi di \emph{bike sharing} in tutto il mondo, i quali
+  destano un grande interesse per via del loro impatto su traffico,
+  sull'ambiente e sulla salute.
+  
+  Le attività legate al \emph{bike sharing} sono inoltre oggetto di studio
+  in ambiti come la ricerca operativa e la statistica, data l'enorme quantità
+  di dati che essi generano.
+\end{abstract}
+
+
+
+%-----------------------------------------------------------------------
+% Analisi preliminare
+%-----------------------------------------------------------------------
+\chapter{Analisi preliminare}
+\section{Dataset}
+Il dataset utilizzato in questa analisi è stato ottenuto dall'
+\href{http://archive.ics.uci.edu/ml}{UCI Machine Learning Repository},
+da un lavoro di Hadi Fanaee-T and Joao Gama (\cite{fanaee2013}).
+
+L'utilizzo dei servizi di bikesharing è fortemente influenzato dal
+contesto ambientale e climatico. Ad esempio condizioni meteorologiche,
+temperatura e orario possono incidere sulla tendenza degli utenti a
+noleggiare una bicicletta. I dati sono forniti dal sistema Capital
+Bikeshare, Wshington D.C., USA, disponibili al pubblico all'indirizzo
+\url{http://capitalbikeshare.com/system-data}, e coprono un'intervallo
+di due anni: 2011 e 2012. Gli autori del dataset hanno aggregato i dati
+su basi giornaliera ed oraria e, successivamente, hanno inserito informazioni
+sulle condizioni meteorologiche (ottenute da \url{http://www.freemeteo.com}).
+
+Lo scopo principale dell'analisi proposta è la predizione del numero totale
+di utenti per fascia oraria in funzione delle variabili ambientali presenti
+nel dataset. Questo risultato consentirà una migliore distribuzione delle
+biciclette nelle rastrelliere, ed una migliore organizzazione delle operazioni
+di manutenzione, facendo in modo che siano effettuate nei periodi di minore
+utilizzo del servizio.
+
+\iffalse
+Uno scopo secondario è la classificazione degli utenti in \emph{registrati} e
+\emph{occasionali}. Questa classificazione è importante da un punto di vista
+aziendale, in quanto i clienti registrati sono una fonte stabile e costante
+di introiti: per questo motivo è utile identificare i clienti occasionali e
+"trasformarli" in clienti registrati, ad esempio proponendo loro abbonamenti
+mirati a soddifare le loro esigenze.
+\fi
+
+
+
+%-----------------------------------------------------------------------
+\section{Significato delle variabili}
+Il dataset è suddiviso in due file. Il primo contiene informazioni circa numero
+di utenti su base oraria, il secondo contiene le stesse informazioni aggregate
+su base giornaliera. La Tab. \ref{tab:variable-meaning} mostra i campi
+del dataset e la relativa tipologia. Per le varibili categoriche, viene indicato
+tra parentesi il numero di modalità.
+
+\begin{table}
+  \begin{tabular}{|| c | l | c ||}
+    \hline
+    Campo       & Descrzione                      & Tipologia       \\ \hline
+    \hline
+    instant     & ID                              & numerico        \\ \hline
+    dteday      & data                            & data            \\ \hline
+    season      & stagione                        & categorico (4)  \\ \hline
+    yr          & anno                            & categorico (2)  \\ \hline
+    mnth        & mese                            & categorico (2)  \\ \hline
+    hr          & ora                             & categorico (24) \\ \hline
+    holyday     & festività                       & categorico (2)  \\ \hline
+    weekeday    & giorno della settimana          & categorico (7)  \\ \hline
+    workingday  & giorno lavorativo               & categorico (2)  \\ \hline
+    wheaterlist & condizioni meteorologiche       & categorico (4)  \\ \hline
+    temp        & temperatura normalizzata        & continuo        \\ \hline
+    atemp       & temp. percepita normalizzata    & continuo        \\ \hline
+    hum         & umidità normalizzata            & continuo        \\ \hline
+    windspeed   & velocità del vento normalizzata & continuo        \\ \hline
+    casual      & numero di utenti occasionali    & numerico        \\ \hline
+    registered  & numero di utenti registrati     & numerico        \\ \hline
+    cnt         & numero di utenti totale         & numerico        \\ \hline
+  \end{tabular}
+  \caption{Significato delle variabili}
+  \label{tab:variable-meaning}
+\end{table}
+
+Una prima osservazione riguarda le variabili \emph{instant} e
+\emph{dteday}: la prima è un identificatore numerico assegnato dal
+sistema di misurazione, non è quindi utile ai fini dell'analisi e
+può essere scartata. La seconda rappresenta la data in cui la
+misura è stata effettuata, in formato "yyyy-mm-dd". Anno e mese sono
+già disponibili come variabili separate, inoltre è ragionevole assumere
+che il giorno del mese non sia utile per predire il numero di utenti,
+quindi anche questa variabile può essere scartata.
+
+Una seconda osservazione riguarda le variabili \emph{mnth} e
+\emph{season}: quest'ultima può essere vista come un'aggregazione di
+mesi. Viceversa, \emph{mnth} è più precisa di \emph{season}, dunque
+ragionevole assumere che sia più informativa. Quest'intuizione è
+confermata dalla Fig. \ref{fig:month-season}, che confronta i boxplot
+utenti versus mese e stagione, rispettivamente. Nell'ottica di
+quest'analisi, dovendo scegliere quale scartare, è preferibile mantenere
+\emph{season}: verosimilmente l'azienda che gestisce il servizio ha
+maggior interesse ai dati su base trimestrale che non mensile.
+
+\begin{figure}
+  \includegraphics[width=1.0\textwidth]{../plots/month-season.pdf}
+  \caption{Relazione tra mese e numero di utenti (sinistra) e stagione e numero di utenti(destra)}
+  \label{fig:month-season}
+\end{figure}
+
+Un ragionamento analogo può essere fatto sull'orario, aggregando le
+informazioni per costruire delle fasce. Un criterio di raggruppamento
+consiste nel suddividere la giornata tenendo conto del numero di utenti
+per fascia, ovvero raggruppando le ore con un numero di utenti simile.
+In questa analisi viene proposta una suddivisione in 6 fasce basate
+sull'utilizzo del servizio: \emph{molto alto}, \emph{alto}, \emph{medio},
+\emph{basso}, \emph{molto basso} e \emph{trascurabile}. Questo tipo di
+operazione viene chiamata \emph{clustering}, e non è stata trattata durante il
+corso. Tuttavia questo è un caso particolarmente semplice: si vogliono
+creare 6 gruppi all'interno di un insieme di 24 elementi, i quali
+rappresentano il numero medio di utenti in un determinato orario. Per
+quest'operazione si è scelto di utilizzare il metodo \emph{K-means},
+del quale è disponibile una descrizione più approfondita nell'Appendice
+\ref{app:k-means}. La Fig. \ref{fig:hour-timeslot} mostra il risultato
+dell'aggregazione, confrontandolo con il grafico utenti versus orario.
+
+\begin{figure}
+  \includegraphics[width=1.0\textwidth]{../plots/hour-timeslot.pdf}
+  \caption{Relazione tra orario e numero di utenti (sinistra) e fascia di utilizzo e numero di utenti (destra)}
+  \label{fig:hour-timeslot}
+\end{figure}
+
+La Fig. \ref{fig:temperature-humidity} mostra la relazione tra
+temperatura percepita e temperatura: sono fondamentalmente identiche,
+dunque è sufficiente mantenerne una sola.
+
+\begin{figure}
+  \includegraphics[width=1.0\textwidth]{../plots/temperature-humidity.pdf}
+  \caption{Relazione tra temperatura percepita e temperatura (sinistra) e umidità misurata (destra)}
+  \label{fig:temperature-humidity}
+\end{figure}
+
+La variable \emph{wheaterlist} ha quattro modalità: tempo \emph{sereno},
+\emph{incerto}, \emph{pioggia} e \emph{tempesta}. Quest'ultima comprende
+3 osservazioni, per cui è ragionevole unire la terza e la quarta modalità.
+
+
+
+%-----------------------------------------------------------------------
+\section{Individuazione degli outlier}
+La Fig. \ref{fig:temperature-humidity} (destra) mostra che la percentuale
+di umidità varia tra il 10 ed il 100\%, ad eccezione di un punto per cui
+la percentuale di umidità è dello 0\%: improbabile dal punto di vista
+climatico. Questo punto anomalo rappresenta tutte e sole le misurazioni
+del giorno 10 marzo 2011. Molto probabilmente si tratta di un guasto al
+sistema, e questi punto è un \emph{outlier}.
+
+Nella Fig. \ref{fig:temperature-humidity} (sinistra) si nota un punto
+isolato, per il quale la temperatura percepita è molto bassa: 12.12\degree
+contro i 30\degree misurati. Questo punto rappresenta tutte e sole le
+osservazioni del giorno 17 agosto 2012. Si tratta probabilmente di un
+guasto al rilevatore di temperatura.
+
+Il dataset non contiene informazioni sul 29 ottobre 2012, giorno in cui
+l'uragano Sandy ha colpito gli Stati Uniti. Gli autori del dataset hanno
+rimosso le misurazioni relative a tale data in quanto non significative.
+
+L'analisi ha rilevato due giornate in cui le misurazioni di temperatura
+percepita e umidità sono compromesse. Vista la numerosità del dataset,
+è possibile scartare le informazioni di queste due giornate anomale
+senza grossa perdita di informazione: 48 osservazioni perse su 17379,
+$\approx$ 0.28\%.
+
+
+
+%-----------------------------------------------------------------------
+% Regressione
+%-----------------------------------------------------------------------
+\chapter{Regressione}
+Per predire il numero totale di utenti in funzione dei dati disponibili
+vengono proposti e confrontati alcuni modelli. L'insieme dei dati è
+stato suddiviso in due parti: l'\emph{insieme di stima} e l'\emph{insieme
+di verifica}. Il primo serve a costruire ed allenare i modelli, il
+secondo viene utilizzato per valutarne le prestazioni. Come indice di
+prestazione viene utilizzato l'errore quadratico medio (MSE).
+
+%I risultati dettagliati dei modelli proposti sono raccolti nell'Appendice
+%\ref{app:output}.
+
+
+%-----------------------------------------------------------------------
+\section{Regressione lineare}
+Un primo tentativo consiste nel cercare di predire il numero di utenti
+in funzione di tutte le altre variabili. Per le variabili esplicative
+\emph{isWorkingday} e \emph{timeslot} non sono stati generati coefficienti:
+esse sono linearmente dipendenti da \emph{weekday + isHoliday} e \emph{hour},
+rispettivamente. Usando l'algoritmo iterativo \emph{stepwise}, si minimizza
+l'AIC del modello: nel risultato sono escluse le variabili \emph{isWorkingday}
+e \emph{timeslot}. La procedura \emph{stepwise} non riesce ad eliminare
+altre variabili, ed il valore $R^{2}$ finale è $\approx$ 0.64, un risultato
+soddisfacente considerando la semplicità del modello.
+
+Un secondo approccio consiste nel scegliere manualmente un sottoinsieme
+delle variabili da utilizzare. Per questo modello vengono considerate le
+variabili \emph{temperature}, \emph{humidity}, \emph{windspeed}, \emph{weather},
+\emph{timeslot}, \emph{weekday} e \emph{season}. La scelta è motivata
+dalle osservazioni nell'analisi preliminare. Il valore $R^{2}$ è
+$\approx$ 0.62, molto vicino a quello del modello precedente.
+
+
+%-----------------------------------------------------------------------
+\section{MARS}
+Due modelli MARS sono costruiti sull'insieme di stima. Entrambi selezionano
+automaticamente le variabili significative, il secondo opera la scelta
+considerando il grado di interazione uguale 2. Quest'ultimo non è stato
+trattato esplicitamente durante il corso: come nel MARS con grado di
+interazione 1, l'aggiunta di nuove funzioni base avviene scegliendo tra
+formule nella forma $c_i \cdot max(0, x - q)$, in più vengono considerate
+formule nella forma $c_i \cdot max(0, x_1 - q_1) \cdot max(0, x_2 - q_2)$.
+
+
+%-----------------------------------------------------------------------
+\section{GAM}
+Un terzo gruppo di modelli comprende GAM costruiti sull'insieme di stima.
+Due criteri di lisciamento sono applicati alle variabili continue:
+\emph{splines} e \emph{loess}. Per ciascuna delle due famiglie sono
+stati creati un modello che considera tutte le variabili, ed uno contenente
+solo quelle più significative. La significatività è ottenuta dall'analisi
+della varianza e dalle osservazioni preliminari.
+
+Il valore del parametro di lisciamento è determinato da una scansione
+che minimizza l'MSE sull'insieme di verifica. Il risultato è mostrato
+nella Fig. \ref{fig:GAM}.
+
+\begin{figure}
+  \includegraphics[width=1.0\textwidth]{../plots/GAM.pdf}
+  \caption{MSE in funzione del parametro di lisciamento per il GAM con splines (sinistra) e loess (destra)}
+  \label{fig:GAM}
+\end{figure}
+
+Per non complicare l'analisi, alle variabili continue si impone lo stesso
+parametro di lisciamento, anziché stimarne uno diverso per ognuna. La
+scelta è motivata dall'elevato costo computazionale della scansione
+completa ($\Theta(n^{3})$ contro $\Theta(n)$ di quella proposta).
+I risultati ottenuti suggeriscono inoltre che la scansione completa non
+apporterebbe un beneficio significativo.
+
+
+%-----------------------------------------------------------------------
+\section{Regressione Projection Pursuit}
+Una Regressione Projection Pursuit viene applicata ai dati dell'insieme
+di stima. La PPR si basa su un meccanismo analogo all'analisi delle
+componenti principali, seleziona automaticamente le variabili una
+volta effettuate le proiezioni e utilizza un parametro per il controllo
+del lisciamento.
+
+Il massimo numero di termini ed il parametro di lisciamento sono stimati
+minimizzando l'MSE sull'insieme di verifica con una scansione il cui
+risultato è mostrato nella Fig. \ref{fig:PPR-NN} (sinistra).
+
+\begin{figure}
+  \includegraphics[width=0.45\textwidth]{../plots/PPR.pdf}
+  \includegraphics[width=0.45\textwidth]{../plots/neuralnetwork.pdf}
+  \caption{
+    MSE in funzione di parametro di lisciamento e numero di termini della PPR (sinistra),
+    e di dimensione dello strato latente e decadimento per la rete neurale (destra)
+  }
+  \label{fig:PPR-NN}
+\end{figure}
+
+
+%-----------------------------------------------------------------------
+\section{Rete neurale}
+Una rete neurale viene allenata sull'insieme di stima. Una scansione
+stima la dimensione dello strato latente ed il valore di decadimento,
+minimizzando l'MSE sull'insieme di verifica. La Fig. \ref{fig:PPR-NN}
+(destra) mostra il risultato della scansione.
+
+La scansione è fortemente limitata dal tempo di esecuzione dell'allenamento
+della rete neurale.
+
+
+
+%-----------------------------------------------------------------------
+\section{Albero CART}
+Un albero CART viene fatto crescere sull'insieme di stima e,
+successivamente, potato minimizzandone la devianza (Fig.
+\ref{fig:CART} (destra)). L'informazione sulla devianza in funzione del
+numero di foglie è ottenuta tramite convalida incrociata. La Fig.
+\ref{fig:CART} (sinistra) mostra l'albero dopo la potatura.
+
+\begin{figure}
+  \includegraphics[width=1.0\textwidth]{../plots/CART.pdf}
+  \caption{
+    CART dopo la potatura (sinistra) e
+    devianza in funzione del numero di fogile de CART (destra)
+  }
+  \label{fig:CART}
+\end{figure}
+
+
+%-----------------------------------------------------------------------
+\section{Confronto e discussione}
+La Tab. \ref{tab:comparison} riporta le prestazioni dei modelli proposti,
+sotto forma di errore quadratico medio sull'insieme di verifica.
+
+Gli MSE dei modelli sono relativamente simili, sebbene quelli che
+considerano le interazioni tra variabili (MARS con grado 2, PPR, rete
+neurale e CART) mostrino prestazioni migliori. La PPR in particolare
+fornisce l'errore minimo.
+
+La rete neurale ha un errore contenuto, ma ha richiesto un tempo di
+calcolo notevole. Il CART fornisce le stesse prestazioni, ma con un
+tempo di calcolo più basso. Nel caso in cui si voglia ripetere
+l'analisi con nuovi dati, il CART è preferibile alla rete neurale.
+
+I risultati dei modelli lineare e GAM mostrano che la scelta manuale dei
+predittori non peggiora significativamente il modello: le analisi
+preliminari sono state utili per ridurre la dimensionalità dei dati.
+
+Dal punto di vista della facilità di lettura, i modello migliore è il CART
+dopo la potatura: con 12 foglie è in grado di predire bene i dati e di
+fornirne un'interpretazione visiva. I modelli lineari e GAM sono
+leggermente più difficili da interpretare e hanno un MSE più alto, ma
+sono comunque degni di nota.
+
+\begin{table}
+  \centering
+  \begin{tabular}{|| l | r | r ||}
+    \hline
+    modello       & variabili       & MSE      \\
+    \hline \hline
+    Lineare       & tutte           & 12664.50 \\
+    Lineare       & solo sign.      & 13056.61 \\
+    MARS          & tutte (grado 1) & 12619.53 \\
+    MARS          & tutte (grado 2) &  6596.50 \\
+    GAM (splines) & tutte           & 12488.67 \\
+    GAM (splines) & solo sign.      & 12862.23 \\
+    GAM (loess)   & tutte           & 12567.49 \\
+    GAM (loess)   & solo sign.      & 12931.21 \\
+    PPR           & 6 termini       &  5198.39 \\
+    Rete neurale  & -               &  7545.42 \\
+    CART          & 46  foglie      &  7681.47 \\
+    CART          & 12  foglie      & 10818.34 \\
+    \hline
+  \end{tabular}
+  \caption{Risultati ottenuti dai diversi modelli}
+  \label{tab:comparison}
+\end{table}
+
+
+
+
+
+%-----------------------------------------------------------------------
+% Appendici
+%-----------------------------------------------------------------------
+\appendix
+%-----------------------------------------------------------------------
+\chapter{Algoritmo K-means}
+\label{app:k-means}
+Il \emph{K-means} è un algoritmo di aggreggazione non gerarchico,
+originariamente pensato per variabili continue. L'idea è raggruppare le
+osservazioni \emph{simili}, dove la similarità viene stimata come
+distanza euclidea nell'iperspazio delle osservazioni.
+
+L'algoritmo colloca $K$ \emph{centroidi} all'interno dello spazio
+delle osservazioni. Ogni osservazione appartiene al gruppo del centroide
+più vicino. L'algoritmo procede iterativamente, spostando i centroidi
+verso il centro del gruppo che identificano. Gli spostamenti possono
+modificare l'appartenenza di un punto ad un gruppo, di conseguenza anche
+le posizioni dei centri dei gruppi. La procedura converge ad un punto fisso
+quando lo spostamento di un centroide non modifica l'appartenenza dei
+punti ad un gruppo.
+
+Nel K-means, il numero di gruppi deve essere noto a priori. È facile
+vedere come la scelta di un numero di gruppi inadeguato possa portare
+a risultati poco significativi, come in Fig. \ref{fig:kmeans}.
+
+Un altro problema riguarda il criterio di \emph{similarità}: l'algoritmo
+la stima come distanza euclidea. Ne consegue che cambiare la scala di
+una delle osservazioni modifica il risultato del K-means. Per evitarlo
+è necessario riscalare i dati. In generale non esiste un modo univoco,
+in quanto il concetto di similarità dipende dal particolare problema
+che si sta trattando.
+
+Nella sua formulazione di base, inoltre, l'algoritmo non è in grado di
+trattare variabili \emph{qualitative}, sebbene esistano delle
+generalizzazioni che considerano altre misure di similarità ed il concetto
+di \emph{medioide} anziché centroide.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.95\textwidth]{imgs/kmeans.png}
+  \caption{Esempi di K-means con numero di gruppi inadeguato}
+  \label{fig:kmeans}
+\end{figure}
+
+
+\iffalse
+%-----------------------------------------------------------------------
+\chapter{Risultati dettagliati}
+\label{app:output}
+%-----------------------------------------------------------------------
+\section{Regressione lineare}
+Le Tabb. \ref{tab:ANOVA1} e \ref{tab:ANOVA2} sono le tabelle ANOVA per i
+due modelli lineari considerati: quello con tutti i predittori (dopo aver
+applicato la procedura stepwise) e quello semplificato.
+
+\begin{table}
+  \begin{tabular}{|| l | r | r | r | r | r ||}
+    \hline
+                &    Df &    Sum Sq & Mean Sq &  F value &    Pr(>F)     \\
+    \hline
+    season      &     3 &  28259847 & 9419949 & 788.1066 & < 2.2e-16 *** \\
+    month       &    11 &   6067776 &  551616 &  46.1502 & < 2.2e-16 *** \\
+    hour        &    23 & 216486438 & 9412454 & 787.4795 & < 2.2e-16 *** \\
+    isHoliday   &     1 &    118485 &  118485 &   9.9129 &  0.001645 **  \\
+    weekday     &     6 &    511996 &   85333 &   7.1392 & 1.294e-07 *** \\
+    weather     &     2 &   8367149 & 4183574 & 350.0128 & < 2.2e-16 *** \\
+    temperature &     1 &   7636143 & 7636143 & 638.8670 & < 2.2e-16 *** \\
+    humidity    &     1 &   3461962 & 3461962 & 289.6401 & < 2.2e-16 *** \\
+    windspeed   &     1 &    511421 &  511421 &  42.7873 & 6.332e-11 *** \\
+    \hline
+    Residuals   & 12949 & 154774648 &   11953 &          &               \\
+    \hline
+  \end{tabular}
+  \caption{ANOVA per il modello lineare con tutte le variabili}
+  \label{tab:ANOVA1}
+\end{table}
+
+\begin{table}
+  \begin{tabular}{|| l | r | r | r | r | r ||}
+    \hline
+                &    Df &    Sum Sq &  Mean Sq &   F value &    Pr(>F)     \\
+    \hline
+    temperature &     1 &  68949857 & 68949857 & 5514.6692 & < 2.2e-16 *** \\
+    humidity    &     1 &  40037471 & 40037471 & 3202.2316 & < 2.2e-16 *** \\
+    windspeed   &     1 &    165288 &   165288 &   13.2198 & 0.0002781 *** \\
+    weather     &     2 &   1018427 &   509213 &   40.7273 & < 2.2e-16 *** \\
+    timeslot    &     5 & 146638897 & 29327779 & 2345.6612 & < 2.2e-16 *** \\
+    weekday     &     6 &    440285 &    73381 &    5.8691 & 3.991e-06 *** \\
+    season      &     3 &   6669326 &  2223109 &  177.8061 & < 2.2e-16 *** \\
+    \hline
+    Residuals   & 12979 & 162276315 &    12503 &           &               \\
+    \hline
+  \end{tabular}
+  \caption{ANOVA per il modello lineare semplificato}
+  \label{tab:ANOVA2}
+\end{table}
+
+
+
+%-----------------------------------------------------------------------
+\section{MARS}
+
+
+%-----------------------------------------------------------------------
+\section{GAM}
+
+
+%-----------------------------------------------------------------------
+\section{Regressione Projectin Pursuit}
+
+
+%-----------------------------------------------------------------------
+\section{Rete neurale}
+
+
+%-----------------------------------------------------------------------
+\section{Albero CART}
+\fi
+
+
+%-----------------------------------------------------------------------
+% Bibliografia
+%-----------------------------------------------------------------------
+\nocite{azzalini2012data}
+\nocite{hastie2013introduction}
+\nocite{hastie2005elements}
+\bibliographystyle{unsrt}
+\bibliography{my_bibliography}
+
+\end{document}

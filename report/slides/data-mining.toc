@@ -1,0 +1,12 @@
+\beamer@endinputifotherversion {3.10pt}
+\select@language {italian}
+\beamer@sectionintoc {1}{Motivazione}{3}{0}{1}
+\beamer@sectionintoc {2}{Analisi preliminare}{4}{0}{2}
+\beamer@subsectionintoc {2}{1}{Significato delle variabili}{4}{0}{2}
+\beamer@subsectionintoc {2}{2}{Individuazione degli outlier}{6}{0}{2}
+\beamer@sectionintoc {3}{Regressione}{7}{0}{3}
+\beamer@subsectionintoc {3}{1}{Modelli utilizzati}{7}{0}{3}
+\beamer@subsectionintoc {3}{2}{Confronto dei risultati}{8}{0}{3}
+\beamer@sectionintoc {4}{Classificazione}{9}{0}{4}
+\beamer@subsectionintoc {4}{1}{Modelli utilizzati}{10}{0}{4}
+\beamer@subsectionintoc {4}{2}{Confronto dei risultati}{11}{0}{4}

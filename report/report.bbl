@@ -1,0 +1,24 @@
+\begin{thebibliography}{1}
+
+\bibitem{fanaee2013}
+Hadi Fanaee-T and Joao Gama.
+\newblock Event labeling combining ensemble detectors and background knowledge.
+\newblock {\em Progress in Artificial Intelligence}, pages 1--15, 2013.
+
+\bibitem{azzalini2012data}
+Adelchi Azzalini, Bruno Scarpa, and Gabriel Walton.
+\newblock {\em Data analysis and data mining: an introduction}.
+\newblock Oxford University Press, 2012.
+
+\bibitem{hastie2013introduction}
+Trevor Hastie, Gareth James, Robert Tibshirani, and Daniela Witten.
+\newblock {\em An Introduction to Statistical Learning with Applications in R}.
+\newblock Springer, New York,, 2013.
+
+\bibitem{hastie2005elements}
+Trevor Hastie, Robert Tibshirani, Jerome Friedman, and James Franklin.
+\newblock {\em The elements of statistical learning: data mining, inference and
+  prediction}.
+\newblock Springer-Verlag, Heidelberg and New York., 2009.
+
+\end{thebibliography}
